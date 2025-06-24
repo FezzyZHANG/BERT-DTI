@@ -1,0 +1,26 @@
+model_name: BERT_DTI
+drug_model_name: "seyonec/PubChem10M_SMILES_BPE_450k"
+prot_model_name: "Rostlab/prot_bert_bfd"
+drug_max_length: 64
+prot_max_length: 545
+prot_layers_keep: 18
+layer_limit: true
+layer_features: [768, 32, 1]
+dropout: 0.1
+pretrained:
+  drug: true
+  prot: true
+random_seed: 42
+
+train_params:
+  batch_size: 32
+  learning_rate: 5e-6
+  num_epochs: 50
+  device: cuda
+  val_interval: 1
+  loss_function: bce  # or smooth_l1
+  metrics:
+    - auroc
+    - auprc
+    - precision
+    - accuracy
