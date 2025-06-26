@@ -241,7 +241,7 @@ def train(model, criterion, optimizer, train_loader, val_loader, config, writer=
         model.train()
         epoch_loss = 0
         
-        for i, batch in enumerate(train_loader):
+        for i, batch in tqdm(enumerate(train_loader)):
             optimizer.zero_grad()
             output = model(batch)
             
