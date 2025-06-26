@@ -11,7 +11,7 @@ from torch.utils import tensorboard
 import torch.utils.data
 import yaml
 from sklearn.metrics import roc_auc_score, average_precision_score, \
-    roc_curve, confusion_matrix, precision_recall_curve, precision_score
+    roc_curve, confusion_matrix, precision_recall_curve, precision_score, f1_score
 import datetime
 from tqdm import tqdm
 import numpy as np
@@ -320,6 +320,9 @@ def evaluate(model, test_loader, config):
         elif metric == 'precision':
             y_pred_binary = (y_pred > 0.5).astype(int)
             metrics['precision'] = precision_score(y_true, y_pred_binary)
+        elif metric == 'f1':
+            y_pred_binary = (y_pred > 0.5).astype(int)
+            metrics['f1'] = f1_score(y_true, y_pred_binary)
         elif metric == 'accuracy':
             y_pred_binary = (y_pred > 0.5).astype(int)
             metrics['accuracy'] = np.mean(y_true == y_pred_binary)

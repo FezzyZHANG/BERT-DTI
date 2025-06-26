@@ -26,3 +26,4 @@ train_params:
     - auprc
     - precision
     - accuracy
+    - f1
