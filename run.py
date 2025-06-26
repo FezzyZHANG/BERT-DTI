@@ -111,8 +111,10 @@ if __name__ == "__main__":
     # ------------
     # model
     # ------------
-    d_model_name = "seyonec/PubChem10M_SMILES_BPE_450k"
-    p_model_name = "Rostlab/prot_bert_bfd"
+    # d_model_name = "seyonec/PubChem10M_SMILES_BPE_450k"
+    d_model_name = "/share/home/grp-huangxd/zhangziyue/Downloads/PubChem10M_SMILES_BPE_450k"
+    # p_model_name = "Rostlab/prot_bert_bfd"
+    p_model_name = "/share/home/grp-huangxd/zhangziyue/Downloads/prot_bert_bfd"
 
     tokenizer = AutoTokenizer.from_pretrained(d_model_name)
     prot_tokenizer = AutoTokenizer.from_pretrained(p_model_name)

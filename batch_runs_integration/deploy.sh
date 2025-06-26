@@ -173,8 +173,10 @@ def test_model_loading():
     try:
         from model import BERTDTIModel
         config = {
-            'drug_model_name': 'seyonec/PubChem10M_SMILES_BPE_450k',
-            'prot_model_name': 'Rostlab/prot_bert_bfd',
+            # 'drug_model_name': 'seyonec/PubChem10M_SMILES_BPE_450k',
+            'drug_model_name': '/share/home/grp-huangxd/zhangziyue/Downloads/PubChem10M_SMILES_BPE_450k',
+            # 'prot_model_name': 'Rostlab/prot_bert_bfd',
+            'prot_model_name': '/share/home/grp-huangxd/zhangziyue/Downloads/prot_bert_bfd',
             'layer_features': [768, 32, 1],
             'dropout': 0.1,
             'pretrained': {'drug': True, 'prot': True},
@@ -192,8 +194,10 @@ def test_dataset_loading():
     try:
         from dataset import BERTDTIDataset
         config = {
-            'drug_model_name': 'seyonec/PubChem10M_SMILES_BPE_450k',
-            'prot_model_name': 'Rostlab/prot_bert_bfd',
+            # 'drug_model_name': 'seyonec/PubChem10M_SMILES_BPE_450k',
+            'drug_model_name': '/share/home/grp-huangxd/zhangziyue/Downloads/PubChem10M_SMILES_BPE_450k',
+            # 'prot_model_name': 'Rostlab/prot_bert_bfd',
+            'prot_model_name': '/share/home/grp-huangxd/zhangziyue/Downloads/prot_bert_bfd',
             'drug_max_length': 64,
             'prot_max_length': 545
         }
