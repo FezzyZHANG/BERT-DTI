@@ -116,6 +116,17 @@ class BERTDTIModel(nn.Module):
         if config.get('layer_limit', False):
             self.p_model = deleteEncodingLayers(self.p_model, config.get('prot_layers_keep', 18))
         
+        # Freeze pre-trained weights if specified
+        if config.get('freeze_pretrained', {}).get('drug', False):
+            for param in self.d_model.parameters():
+                param.requires_grad = False
+            print_with_time("Drug model weights frozen")
+        
+        if config.get('freeze_pretrained', {}).get('prot', False):
+            for param in self.p_model.parameters():
+                param.requires_grad = False
+            print_with_time("Protein model weights frozen")
+        
         # Decoder layers
         layers = []
         input_dim = self.d_model.config.hidden_size + self.p_model.config.hidden_size

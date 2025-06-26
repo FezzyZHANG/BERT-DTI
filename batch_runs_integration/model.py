@@ -65,6 +65,15 @@ class BERTDTIModel(nn.Module):
             layers_to_keep = config.get('prot_layers_keep', 18)
             self.protein_encoder = deleteEncodingLayers(self.protein_encoder, layers_to_keep)
         
+        # Freeze pre-trained weights if specified
+        if config.get('freeze_pretrained', {}).get('drug', False):
+            for param in self.drug_encoder.parameters():
+                param.requires_grad = False
+        
+        if config.get('freeze_pretrained', {}).get('prot', False):
+            for param in self.protein_encoder.parameters():
+                param.requires_grad = False
+        
         # Build decoder network
         self._build_decoder()
         

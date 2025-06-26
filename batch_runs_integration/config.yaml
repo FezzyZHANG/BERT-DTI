@@ -12,6 +12,9 @@ dropout: 0.1
 pretrained:
   drug: true
   prot: true
+freeze_pretrained:
+  drug: false  # Set to true to freeze drug model weights
+  prot: false  # Set to true to freeze protein model weights
 random_seed: 42
 
 train_params:
