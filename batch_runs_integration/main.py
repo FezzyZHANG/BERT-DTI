@@ -241,7 +241,10 @@ def train(model, criterion, optimizer, train_loader, val_loader, config, writer=
         model.train()
         epoch_loss = 0
         
-        for i, batch in tqdm(enumerate(train_loader)):
+        # Add tqdm for batch progress within epoch
+        batch_progress = tqdm(train_loader, desc=f"Epoch {epoch+1}/{config['train_params']['num_epochs']}", leave=False)
+        
+        for i, batch in enumerate(batch_progress):
             optimizer.zero_grad()
             output = model(batch)
             
@@ -251,6 +254,9 @@ def train(model, criterion, optimizer, train_loader, val_loader, config, writer=
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
+            
+            # Update batch progress bar with current loss
+            batch_progress.set_postfix(batch_loss=loss.item())
         
         avg_loss = epoch_loss / len(train_loader)
         
