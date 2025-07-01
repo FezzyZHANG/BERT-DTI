@@ -20,13 +20,13 @@ random_seed: 42
 train_params:
   batch_size: 32
   learning_rate: 5e-6
-  num_epochs: 50
+  num_epochs: 30
   device: cuda
   val_interval: 1
   loss_function: bce  # or smooth_l1
   early_stopping:
     enabled: true
-    patience: 10      # Number of epochs to wait before stopping
+    patience: 7      # Number of epochs to wait before stopping
     min_delta: 0.001  # Minimum change to qualify as an improvement
     monitor: val_loss # Metric to monitor ('val_loss' or any validation metric)
     mode: min         # 'min' for loss, 'max' for metrics like accuracy
