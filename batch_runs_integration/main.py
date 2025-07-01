@@ -241,10 +241,51 @@ def train_and_evaluate(train_data, val_data, test_data, config):
     
     return metrics
 
+class EarlyStopping:
+    """Early stopping utility class"""
+    def __init__(self, patience=10, min_delta=0.001, monitor='val_loss', mode='min'):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.monitor = monitor
+        self.mode = mode
+        self.best_score = None
+        self.counter = 0
+        self.early_stop = False
+        
+        if mode == 'min':
+            self.is_better = lambda score, best: score < (best - min_delta)
+            self.best_score = float('inf')
+        else:  # mode == 'max'
+            self.is_better = lambda score, best: score > (best + min_delta)
+            self.best_score = float('-inf')
+    
+    def __call__(self, current_score):
+        if self.is_better(current_score, self.best_score):
+            self.best_score = current_score
+            self.counter = 0
+            return True  # New best score
+        else:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+            return False  # No improvement
+
 def train(model, criterion, optimizer, train_loader, val_loader, config, writer=None):
     device = torch.device(config['train_params']['device'])
     model.best_model = (model.state_dict(), 0)
     best_loss = float('inf')
+    
+    # Initialize early stopping
+    early_stopping = None
+    if config['train_params'].get('early_stopping', {}).get('enabled', False):
+        es_config = config['train_params']['early_stopping']
+        early_stopping = EarlyStopping(
+            patience=es_config.get('patience', 10),
+            min_delta=es_config.get('min_delta', 0.001),
+            monitor=es_config.get('monitor', 'val_loss'),
+            mode=es_config.get('mode', 'min')
+        )
+        print_with_time(f"Early stopping enabled: monitor={early_stopping.monitor}, patience={early_stopping.patience}")
     
     progress = tqdm(total=config['train_params']['num_epochs'], desc="Training")
     
@@ -272,31 +313,86 @@ def train(model, criterion, optimizer, train_loader, val_loader, config, writer=
         avg_loss = epoch_loss / len(train_loader)
         
         # Validation
+        val_loss = None
+        val_metrics = {}
         if epoch % config['train_params']['val_interval'] == 0:
             model.eval()
             with torch.no_grad():
                 val_loss = 0
+                y_true_val = []
+                y_pred_val = []
+                
                 for batch in val_loader:
                     output = model(batch)
                     labels = batch['label'].view(-1, 1).float().to(device)
                     val_loss += criterion(output, labels).item()
+                    
+                    # Collect predictions for metrics calculation
+                    if config['train_params']['loss_function'] == 'bce':
+                        output = torch.sigmoid(output)
+                    
+                    y_true_val.extend(batch['label'].tolist())
+                    y_pred_val.extend(output.cpu().squeeze().tolist())
                 
                 val_loss /= len(val_loader)
                 
+                # Calculate validation metrics
+                y_true_val = np.array(y_true_val)
+                y_pred_val = np.array(y_pred_val)
+                
+                for metric in config['train_params']['metrics']:
+                    if metric == 'auroc':
+                        val_metrics['val_auroc'] = roc_auc_score(y_true_val, y_pred_val)
+                    elif metric == 'auprc':
+                        val_metrics['val_auprc'] = average_precision_score(y_true_val, y_pred_val)
+                    elif metric == 'accuracy':
+                        y_pred_binary = (y_pred_val > 0.5).astype(int)
+                        val_metrics['val_accuracy'] = np.mean(y_true_val == y_pred_binary)
+                    elif metric == 'f1':
+                        y_pred_binary = (y_pred_val > 0.5).astype(int)
+                        val_metrics['val_f1'] = f1_score(y_true_val, y_pred_binary)
+                
+                # Save best model based on validation loss
                 if val_loss < best_loss:
                     best_loss = val_loss
                     model.best_model = (model.state_dict(), epoch)
         
-        progress.set_postfix(loss=avg_loss, val_loss=val_loss if 'val_loss' in locals() else 0)
+        # Early stopping check
+        should_stop = False
+        if early_stopping and val_loss is not None:
+            monitor_metric = val_loss if early_stopping.monitor == 'val_loss' else val_metrics.get(early_stopping.monitor, val_loss)
+            is_best = early_stopping(monitor_metric)
+            
+            if early_stopping.early_stop:
+                print_with_time(f"Early stopping triggered at epoch {epoch+1}")
+                should_stop = True
+        
+        # Update progress bar
+        progress_info = {'loss': avg_loss}
+        if val_loss is not None:
+            progress_info['val_loss'] = val_loss
+        if val_metrics:
+            progress_info.update({k: f"{v:.4f}" for k, v in val_metrics.items()})
+        if early_stopping:
+            progress_info['patience'] = f"{early_stopping.counter}/{early_stopping.patience}"
+        
+        progress.set_postfix(progress_info)
         progress.update(1)
         
         # Tensorboard logging
         if writer:
             writer.add_scalar('Loss/train', avg_loss, epoch)
-            if 'val_loss' in locals():
+            if val_loss is not None:
                 writer.add_scalar('Loss/val', val_loss, epoch)
+            for metric_name, metric_value in val_metrics.items():
+                writer.add_scalar(f'Metrics/{metric_name}', metric_value, epoch)
+        
+        if should_stop:
+            break
     
     print_with_time("Training done.")
+    if early_stopping and early_stopping.early_stop:
+        print_with_time(f"Training stopped early due to no improvement in {early_stopping.monitor}")
     progress.close()
 
 def evaluate(model, test_loader, config):
@@ -343,6 +439,14 @@ def evaluate(model, test_loader, config):
         elif metric == 'accuracy':
             y_pred_binary = (y_pred > 0.5).astype(int)
             metrics['accuracy'] = np.mean(y_true == y_pred_binary)
+        elif metric == 'sensitivity':
+            y_pred_binary = (y_pred > 0.5).astype(int)
+            tn, fp, fn, tp = confusion_matrix(y_true, y_pred_binary).ravel()
+            metrics['sensitivity'] = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        elif metric == 'specificity':
+            y_pred_binary = (y_pred > 0.5).astype(int)
+            tn, fp, fn, tp = confusion_matrix(y_true, y_pred_binary).ravel()
+            metrics['specificity'] = tn / (tn + fp) if (tn + fp) > 0 else 0.0
         elif metric == 'mse':
             metrics['mse'] = np.mean((y_true - y_pred) ** 2)
     
